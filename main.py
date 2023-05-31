@@ -41,7 +41,7 @@ def main():
 
     try:
         sender_email = os.getenv('EMAIL')
-        assinatura = os.getenv('ASSINATURA')
+        signature = os.getenv('ASSINATURA')
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
         results = service.users().messages().list(userId='me', labelIds=['INBOX'], q=f'from:{sender_email}').execute()
@@ -62,6 +62,7 @@ def main():
                 name = header['name']
                 value = header['value']
                 if name.lower() == 'subject':
+                    value = value.replace("Assista a \"", "").replace("\" no YouTube", "")
                     print('Assunto:', value)
                 if name.lower() == 'from':
                     print('Remetente:', value)
@@ -75,11 +76,10 @@ def main():
                     if data:
                         # Decodificar e imprimir o conteúdo do corpo da mensagem
                         body = base64.urlsafe_b64decode(data).decode('utf-8')
-                        print('Conteúdo:', body.replace("\r\n","").replace(assinatura, ""))
+                        print('Conteúdo:', body.replace("\r\n","").replace(signature, ""))
             #service.users().messages().trash(userId='me', id=message_id).execute()
 
     except HttpError as error:
-        # TODO(developer) - Handle errors from gmail API.
         print(f'An error occurred: {error}')
 
 
