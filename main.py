@@ -11,7 +11,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.modify']
 
 
 
@@ -40,6 +41,7 @@ def main():
 
     try:
         sender_email = os.getenv('EMAIL')
+        assinatura = os.getenv('ASSINATURA')
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
         results = service.users().messages().list(userId='me', labelIds=['INBOX'], q=f'from:{sender_email}').execute()
@@ -51,6 +53,9 @@ def main():
             payload = msg['payload']
             headers = payload['headers']
             parts = payload.get('parts', [])
+            message_id = message['id']
+
+            print('Messagem ID:', message_id)
 
             # Exemplo: imprimir o assunto e o remetente do e-mail
             for header in headers:
@@ -62,13 +67,16 @@ def main():
                     print('Remetente:', value)
             # Verificar se há partes no e-mail
             if len(parts) > 0:
-                for part in parts:
-                    if 'body' in part:
-                        data = part['body'].get('data')
-                        if data:
-                            # Decodificar e imprimir o conteúdo do corpo da mensagem
-                            body = base64.urlsafe_b64decode(data).decode('utf-8')
-                            print('Conteúdo:', body)
+
+                part = parts[0]
+
+                if 'body' in part:
+                    data = part['body'].get('data')
+                    if data:
+                        # Decodificar e imprimir o conteúdo do corpo da mensagem
+                        body = base64.urlsafe_b64decode(data).decode('utf-8')
+                        print('Conteúdo:', body.replace("\r\n","").replace(assinatura, ""))
+            #service.users().messages().trash(userId='me', id=message_id).execute()
 
     except HttpError as error:
         # TODO(developer) - Handle errors from gmail API.
