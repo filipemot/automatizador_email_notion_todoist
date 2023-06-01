@@ -22,6 +22,8 @@
 - Criar Credenciais de OAuth2, para computador
 - Adicionar scope de APIS do GmailAPI
 - Gravar arquivo de Credenciais no formato JSON
+- A primeira vez que rodar o script, será necessário autorizar o acesso a conta do Gmail
+- O script irá gerar um arquivo token.json, que será utilizado para autorizar o acesso a conta do Gmail
 
 # Exemplo do arquivo credentials
 
@@ -47,3 +49,20 @@ Crie um arquivo .env na raiz do projeto com as seguintes variáveis:
 EMAIL=Email que será filtrado na caixa de entrada
 ASSINATURA=Assinatura que será removida do corpo do email
 ```
+
+# Configurar Notion
+
+- Criar uma integração no Notion(https://www.notion.com/my-integrations)
+- Clicar em nova Integração
+- Selecionar qual a workspace que será integrada
+- Definir um nome para a integração
+- Copie o token de integração
+- Adicione ele no .env com o nome NOTION_TOKEN
+- Vai na Workspace do Notion
+- Crie uma página
+- Adicione um Database
+- Adicione as propriedades que desejar
+- Clique nos 3 pontinhos do Database
+- Adicione a conexão com a Integração
+- Clique em share e copie o link da página. Exemplo: https://www.notion.so/1212. O Id seria o 1212
+- Adicione o Id da página no .env com o nome NOTION_DATABASE_ID

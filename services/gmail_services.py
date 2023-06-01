@@ -58,18 +58,20 @@ class GmailServices:
             self.get_headers(headers, item)
             # Verificar se há partes no e-mail
             self.get_contents(parts, signature, item)
-            # delete_message(service, message_id)
+            self.__delete_message(message_id)
             list_messages.append(item)
+
 
         return list_messages
 
-    def delete_message(self, message_id):
+    def __delete_message(self, message_id):
         self.service.users().messages().trash(userId='me', id=message_id).execute()
 
     def list_messages(self,sender_email, signature):
         results = self.service.users().messages().list(userId='me', labelIds=['INBOX'], q=f'from:{sender_email}').\
             execute()
         messages = results.get('messages', [])
+
         return self .__get_messages(messages, signature)
 
     @staticmethod
