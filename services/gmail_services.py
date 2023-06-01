@@ -52,8 +52,7 @@ class GmailServices:
             parts = payload.get('parts', [])
             message_id = message['id']
 
-            item = {}
-            item['message_id'] = message_id
+            item = {'message_id': message_id}
 
             # Exemplo: imprimir o assunto e o remetente do e-mail
             self.get_headers(headers, item)
