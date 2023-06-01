@@ -17,3 +17,12 @@ Automatizador de Leitura de Emails e Integração no Notion e TodoIst
 - Criar Credenciais de OAuth2, para computador
 - Adicionar scope de APIS do GmailAPI
 - Gravar arquivo de Credenciais no formato JSON
+
+# Arquivo de .env
+
+Crie um arquivo .env na raiz do projeto com as seguintes variáveis:
+
+```
+EMAIL=Email que será filtrado na caixa de entrada
+ASSINATURA=Assinatura que será removida do corpo do email
+```
