@@ -1,5 +1,10 @@
-# automatizador_email_notion_todoist
-Automatizador de Leitura de Emails e Integração no Notion e TodoIst
+# Automatizador de Leitura de Emails e Integração no Notion e TodoIst
+
+# Objetivo
+- Ler os emails de uma caixa de entrada
+- Filtrar os emails por remetente
+- Criar uma tarefa no TodoIst
+- Criar uma página no Notion
 
 # Instalar
 
