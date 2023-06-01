@@ -66,3 +66,274 @@ ASSINATURA=Assinatura que será removida do corpo do email
 - Adicione a conexão com a Integração
 - Clique em share e copie o link da página. Exemplo: https://www.notion.so/1212. O Id seria o 1212
 - Adicione o Id da página no .env com o nome NOTION_DATABASE_ID
+
+# Configurar TodoIst
+- Crie em .env a variável TODOIST_API_URL=https://api.todoist.com/rest/v2/tasks
+- Pegue o token de integração https://todoist.com/app/settings/integrations/developer
+- Adicione ele no .env com o nome TODOIST_TOKEN
+- Pegue o Id do projeto que deseja adicionar as tarefas
+- Adicione ele no .env com o nome TODOIST_PROJECT
+
+# Configurar o script .env
+
+```env
+EMAIL=Email que será filtrado na caixa de entrada
+ASSINATURA=Assinatura que será removida do corpo do email
+NOTION_API_URL=https://api.notion.com/v1/pages
+NOTION_TOKEN=Token de integração do Notion
+NOTION_DATABASE_ID=Id da página do Notion
+TODOIST_API_URL=https://api.todoist.com/rest/v2/tasks
+TODOIST_TOKEN=Token de integração do TodoIst
+TODOIST_PROJECT=Id do projeto do TodoIst
+```
+
+# Executar o script
+
+```bash
+python main.py
+```
+
+# Classes
+
+## Gmail
+
+- Classe responsável por fazer a conexão com o Gmail
+- Faz a leitura dos emails
+- Faz a filtragem dos emails
+- Faz a remoção da assinatura do email
+- Retorna o email filtrado e sem assinatura
+
+- Métodos
+  - get_credentials - Retorna as credenciais do Gmail
+  - list_messages - Retorna os emails filtrados
+  - delete_message - Deleta o email da caixa de entrada  
+
+
+```python
+import base64
+import os
+import os.path
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+
+class GmailServices:
+    # If modifying these scopes, delete the file token.json.
+    scopes = ['https://www.googleapis.com/auth/gmail.readonly',
+              'https://www.googleapis.com/auth/gmail.modify']
+
+    def __init__(self, path):
+        self.path = path
+        self.creds = self.get_credentials(self.scopes)
+        self.service = build('gmail', 'v1', credentials=self.creds)
+
+    def get_credentials(self, scopes):
+        """Shows basic usage of the Gmail API.
+        Lists the user's Gmail labels.
+        """
+        creds = None
+        file_token = 'token.json'
+        file_credentials = 'credentials.json'
+        # The file token.json stores the user's access and refresh tokens, and is
+        # created automatically when the authorization flow completes for the first
+        # time.
+        if os.path.exists(os.path.join(self.path, file_token)):
+            creds = Credentials.from_authorized_user_file(os.path.join(self.path, file_token), scopes)
+
+        # If there are no (valid) credentials available, let the user log in.
+        if not creds or not creds.valid:
+            creds = self.get_token(creds, os.path.join(self.path, file_credentials), scopes)
+            # Save the credentials for the next run
+            with open(os.path.join(self.path, file_token), 'w') as token:
+                token.write(creds.to_json())
+        return creds
+
+    def __get_messages(self, messages, signature):
+
+        list_messages = []
+
+        for message in messages:
+            msg = self.service.users().messages().get(userId='me', id=message['id']).execute()
+            payload = msg['payload']
+            headers = payload['headers']
+            parts = payload.get('parts', [])
+            message_id = message['id']
+
+            item = {'message_id': message_id}
+
+            self.get_headers(headers, item)
+            self.get_contents(parts, signature, item)
+
+            list_messages.append(item)
+
+
+        return list_messages
+
+    def delete_message(self, message_id):
+        self.service.users().messages().trash(userId='me', id=message_id).execute()
+
+    def list_messages(self,sender_email, signature):
+        results = self.service.users().messages().list(userId='me', labelIds=['INBOX'], q=f'from:{sender_email}').\
+            execute()
+        messages = results.get('messages', [])
+
+        return self .__get_messages(messages, signature)
+
+    @staticmethod
+    def get_headers(headers, item):
+
+        for header in headers:
+            name = header['name']
+            value = header['value']
+            if name.lower() == 'subject':
+                value = value.replace("Assista a \"", "").replace("\" no YouTube", "")
+                item['subject'] = value
+            if name.lower() == 'from':
+                item['from'] = value
+
+    @staticmethod
+    def get_contents(parts, signature, item):
+        if len(parts) > 0:
+
+            part = parts[0]
+
+            if 'body' in part:
+                data = part['body'].get('data')
+                if data:
+                    body = base64.urlsafe_b64decode(data).decode('utf-8')
+                    item['content'] = body.replace("\r\n", "").replace(signature, "")
+
+
+    @staticmethod
+    def get_token(creds, file_credentials, scopes):
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                file_credentials, scopes)
+            creds = flow.run_local_server(port=0)
+        return creds
+```
+
+## Notion
+
+- Classe responsável por fazer a conexão com o Notion
+- Faz a criação da task no Notion
+
+- Métodos
+  - create_task - Cria a task no Notion
+
+```python   
+import json
+
+import requests
+
+
+class NotionServices:
+    def __init__(self, token, url):
+        self.token = token
+        self.url = url
+
+    def create_task(self, database_id, title, contents):
+        data = self.create_data(database_id, title, contents)
+        headers = self.get_headers()
+
+        response = requests.post(self.url, headers=headers, data=json.dumps(data))
+
+        if response.status_code == 200:
+            print("Notion - Task created successfully!")
+        else:
+            print("Notion - Error creating task:", response.status_code, response.text)
+
+    def get_headers(self):
+        return {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2021-05-13"
+        }
+
+    def create_data(self, database_id, title, contents):
+        return {
+            "parent": {
+                "database_id": database_id
+            },
+            "properties": {
+                "title": [
+                    {
+                        "text": {
+                            "content": title
+                        }
+                    }
+                ]
+
+            },
+            "children": [
+                {
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {
+                        "text": [
+                            {
+                                "type": "text",
+                                "text": {
+                                    "content": contents
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+```
+
+# Todoist
+
+- Classe responsável por fazer a conexão com o Todoist
+- Faz a criação da task no Todoist
+- Métodos
+  - create_task - Cria a task no Todoist
+
+```python
+import json
+
+import requests
+
+
+class TodoistServices:
+    def __init__(self, token, url):
+        self.token = token
+        self.url = url
+
+    def create_task(self, title, project_id, due_date):
+        data = self.create_data(title, project_id, due_date)
+        headers = self.get_headers()
+
+        response = requests.post(self.url, headers=headers, data=json.dumps(data))
+
+        if response.status_code == 200:
+            print("TodoIst - Task created successfully!")
+        else:
+            print("TodoIst - Error creating task:", response.status_code, response.text)
+
+
+    def get_headers(self):
+        return {
+            "Authorization": "Bearer " + self.token,
+            "Content-Type": "application/json"
+        }
+
+    @staticmethod
+    def create_data(title, project_id, due_date):
+        return {
+            "content": title,
+            "due_date": due_date,
+            "project_id": project_id
+        }
+
+```
+
+#Github
+
+https://github.com/filipemot/automatizador_email_notion_todoist

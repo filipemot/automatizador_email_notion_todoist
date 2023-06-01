@@ -15,9 +15,9 @@ class NotionServices:
         response = requests.post(self.url, headers=headers, data=json.dumps(data))
 
         if response.status_code == 200:
-            print("Tarefa criada com sucesso!")
+            print("Notion - Task created successfully!")
         else:
-            print("Erro ao criar a tarefa:", response.status_code, response.text)
+            print("Notion - Error creating task:", response.status_code, response.text)
 
     def get_headers(self):
         return {

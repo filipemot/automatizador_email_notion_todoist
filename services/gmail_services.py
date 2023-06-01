@@ -1,12 +1,11 @@
 import base64
-import os.path
 import os
-from dotenv import load_dotenv
+import os.path
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
 
 class GmailServices:
@@ -44,7 +43,6 @@ class GmailServices:
 
         list_messages = []
 
-        # Itere sobre os e-mails
         for message in messages:
             msg = self.service.users().messages().get(userId='me', id=message['id']).execute()
             payload = msg['payload']
@@ -54,17 +52,15 @@ class GmailServices:
 
             item = {'message_id': message_id}
 
-            # Exemplo: imprimir o assunto e o remetente do e-mail
             self.get_headers(headers, item)
-            # Verificar se há partes no e-mail
             self.get_contents(parts, signature, item)
-            self.__delete_message(message_id)
+
             list_messages.append(item)
 
 
         return list_messages
 
-    def __delete_message(self, message_id):
+    def delete_message(self, message_id):
         self.service.users().messages().trash(userId='me', id=message_id).execute()
 
     def list_messages(self,sender_email, signature):
@@ -82,9 +78,9 @@ class GmailServices:
             value = header['value']
             if name.lower() == 'subject':
                 value = value.replace("Assista a \"", "").replace("\" no YouTube", "")
-                item['assunto'] = value
+                item['subject'] = value
             if name.lower() == 'from':
-                item['remetente'] = value
+                item['from'] = value
 
     @staticmethod
     def get_contents(parts, signature, item):
@@ -95,9 +91,8 @@ class GmailServices:
             if 'body' in part:
                 data = part['body'].get('data')
                 if data:
-                    # Decodificar e imprimir o conteúdo do corpo da mensagem
                     body = base64.urlsafe_b64decode(data).decode('utf-8')
-                    item['conteudo'] = body.replace("\r\n", "").replace(signature, "")
+                    item['content'] = body.replace("\r\n", "").replace(signature, "")
 
 
     @staticmethod
