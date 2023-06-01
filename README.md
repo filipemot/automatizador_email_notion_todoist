@@ -18,6 +18,22 @@ Automatizador de Leitura de Emails e Integração no Notion e TodoIst
 - Adicionar scope de APIS do GmailAPI
 - Gravar arquivo de Credenciais no formato JSON
 
+# Exemplo do arquivo credentials
+
+```json
+{
+	"installed": {
+		"client_id": "ClientID do OAuth2",
+		"project_id": "Nome do Projeto",
+		"auth_uri": "https://accounts.google.com/o/oauth2/auth",
+		"token_uri": "https://oauth2.googleapis.com/token",
+		"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+		"client_secret": "ClientSecret do OAuth2",
+		"redirect_uris": ["http://localhost"]
+	}
+}
+```
+
 # Arquivo de .env
 
 Crie um arquivo .env na raiz do projeto com as seguintes variáveis:
