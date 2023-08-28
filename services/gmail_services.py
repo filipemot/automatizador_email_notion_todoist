@@ -30,6 +30,11 @@ class GmailServices:
         # time.
         if os.path.exists(os.path.join(self.path, file_token)):
             creds = Credentials.from_authorized_user_file(os.path.join(self.path, file_token), scopes)
+        
+        if creds.expired:
+            creds = None
+            
+        
 
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
@@ -97,6 +102,7 @@ class GmailServices:
 
     @staticmethod
     def get_token(creds, file_credentials, scopes):
+        
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
