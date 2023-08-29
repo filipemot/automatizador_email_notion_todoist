@@ -30,15 +30,12 @@ class GmailServices:
         # time.
         if os.path.exists(os.path.join(self.path, file_token)):
             creds = Credentials.from_authorized_user_file(os.path.join(self.path, file_token), scopes)
-        
-        if creds and creds.expired and creds.refresh_token:
-            creds = None     
-            os.remove(os.path.join(self.path, file_token))
 
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             
             creds = self.get_token(creds, os.path.join(self.path, file_credentials), scopes)
+            
             # Save the credentials for the next run
             with open(os.path.join(self.path, file_token), 'w') as token:
                 token.write(creds.to_json())
