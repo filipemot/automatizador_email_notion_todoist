@@ -30,7 +30,7 @@ def main():
         notion_services = NotionServices(notion_token, notion_url)
 
         todoist_services = TodoistServices(todoist_token, todoist_url)
-        due_date = (datetime.now() + timedelta(days=10)).replace(hour=10, minute=0, second=0).isoformat()
+        due_date = (datetime.now() + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
 
         for message in messages:
             notion_services.create_task(notion_database_id, message['subject'], message['content'])
