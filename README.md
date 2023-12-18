@@ -95,6 +95,7 @@ python main.py
 
 # Classes
 
+
 ## Gmail
 
 - Classe responsável por fazer a conexão com o Gmail
