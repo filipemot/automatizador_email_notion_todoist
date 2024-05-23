@@ -5,6 +5,7 @@
 - Filtrar os emails por remetente
 - Criar uma tarefa no TodoIst
 - Criar uma página no Notion
+- Script auxiliar para atualizar a data das tarefas vencidas
 
 # Instalar
 
@@ -68,11 +69,12 @@ ASSINATURA=Assinatura que será removida do corpo do email
 - Adicione o Id da página no .env com o nome NOTION_DATABASE_ID
 
 # Configurar TodoIst
-- Crie em .env a variável TODOIST_API_URL=https://api.todoist.com/rest/v2/tasks
+- Crie em .env a variável TODOIST_API_URL=https://api.todoist.com/sync/v9/sync
 - Pegue o token de integração https://todoist.com/app/settings/integrations/developer
 - Adicione ele no .env com o nome TODOIST_TOKEN
 - Pegue o Id do projeto que deseja adicionar as tarefas
 - Adicione ele no .env com o nome TODOIST_PROJECT
+- Versão da API utlizada v9
 
 # Configurar o script .env
 
@@ -82,16 +84,24 @@ ASSINATURA=Assinatura que será removida do corpo do email
 NOTION_API_URL=https://api.notion.com/v1/pages
 NOTION_TOKEN=Token de integração do Notion
 NOTION_DATABASE_ID=Id da página do Notion
-TODOIST_API_URL=https://api.todoist.com/rest/v2/tasks
+TODOIST_API_URL=https://api.todoist.com/sync/v9/sync
 TODOIST_TOKEN=Token de integração do TodoIst
 TODOIST_PROJECT=Id do projeto do TodoIst
+TODOIST_PROJECT_UPDATED_DATE=Projetos que serão atualizados a data, caso as tarefas já estiverem vencidas Ex: 2263788238,2263786127
 ```
 
-# Executar o script
+# Executar o script - Integração Gmail, Notion e TodoIst
 
 ```bash
 python main.py
 ```
+
+# Executar o script - Atualizar a data das tarefas vencidas
+
+```bash
+python update_date_tasks.py
+```
+
 
 # Classes
 
@@ -295,44 +305,140 @@ class NotionServices:
 - Faz a criação da task no Todoist
 - Métodos
   - create_task - Cria a task no Todoist
+  - update_task - Atualiza a task no Todoist
+  - get_tasks - Retorna as tasks do Todoist
 
 ```python
+from __future__ import annotations
+
 import json
+import uuid
+from typing import Mapping
 
 import requests
 
+from domain.item import Item
+from domain.items import Items
 
 class TodoistServices:
     def __init__(self, token, url):
         self.token = token
         self.url = url
 
-    def create_task(self, title, project_id, due_date):
-        data = self.create_data(title, project_id, due_date)
-        headers = self.get_headers()
+    def create_task(self, title: str, project_id: str, due_date: str) -> None:
+        payload = json.dumps(self.__create_data(title, project_id, due_date))
+        headers = self.__get_headers()
+        self.__execute_request(headers, payload, "created")
 
-        response = requests.post(self.url, headers=headers, data=json.dumps(data))
+    def update_task(self, project_id: str, due_date: str) -> None:
+        payload = json.dumps(self.__updated_data(project_id, due_date))
+        headers = self.__get_headers()
+        self.__execute_request(headers, payload, "updated")
 
+    def get_tasks(self) -> Items:
+        headers = self.__get_headers()
+        payload = json.dumps({
+            "sync_token": "*",
+            "resource_types": [
+                "items"
+            ]
+        })
+        response = requests.request("POST", self.url, headers=headers, data=payload)
+
+        return self.__convert_response_to_items(response)
+
+    @staticmethod
+    def __convert_response_to_items(response: any) -> Items:
+        json_response = response.json()
+
+        items = []
+        for item in json_response['items']:
+
+            due_date = None
+            due_is_recurring = False
+
+            if item['due'] is not None:
+                due_date = item['due']['date']
+                due_is_recurring = item['due']['is_recurring']
+
+            items.append(Item(
+                item['project_id'],
+                item['id'],
+                due_date,
+                due_is_recurring,
+                item['content']
+            ))
+        item = Items(json_response['full_sync'], items)
+
+        return item
+
+
+    def __execute_request(self, headers: Mapping[str, str | bytes], payload, message) -> None:
+        response = requests.post(self.url, headers=headers, data=payload)
         if response.status_code == 200:
-            print("TodoIst - Task created successfully!")
+            print(f"TodoIst - Task {message} successfully!")
         else:
             print("TodoIst - Error creating task:", response.status_code, response.text)
 
-
-    def get_headers(self):
+    def __get_headers(self) -> Mapping[str, str | bytes]:
         return {
             "Authorization": "Bearer " + self.token,
             "Content-Type": "application/json"
         }
 
     @staticmethod
-    def create_data(title, project_id, due_date):
+    def __create_data(title: str, project_id: str, due_date: str) -> object:
         return {
-            "content": title,
-            "due_date": due_date,
-            "project_id": project_id
+            'commands': [
+                {
+                    'type': 'item_add',
+                    'temp_id': str(uuid.uuid4()),
+                    'uuid': str(uuid.uuid4()),
+                    'args': {
+                        'content': title,
+                        'project_id': int(project_id),
+                        "due": {"date": due_date}
+                    }
+                }
+            ]
         }
 
+
+    @staticmethod
+    def __updated_data(project_id, due_date):
+        return {
+            'commands': [
+                {
+                    'type': 'item_update',
+                    'uuid': str(uuid.uuid4()),
+                    'args': {
+                        'project_id': int(project_id),
+                        "due": {"date": due_date}
+                    }
+                }
+            ]
+        }
+
+```
+
+```python
+from domain.item import Item
+
+
+class Items:
+    def __init__(self, full_sync: bool, list_item: [Item]):
+        self.full_sync = full_sync
+        self.list_item = list_item
+```
+
+```python
+class Item:
+    def __init__(self, project_id: str, id_item: str, due_date: str, is_recurring: bool, content: str):
+        self.project_id = project_id
+        self.id_item = id_item
+        self.due_date = due_date
+        self.is_recurring = is_recurring
+        self.content = content
 ```
 
 # Main
@@ -387,6 +493,47 @@ def main():
 if __name__ == '__main__':
     main()
 ```
+
+# update_date_tasks
+
+```python
+import os
+from datetime import datetime, timedelta
+
+from dotenv import load_dotenv
+
+from services.todoist_services import TodoistServices
+
+
+def main():
+    load_dotenv()
+    todoist_project = os.getenv('TODOIST_PROJECT_UPDATED_DATE')
+
+    projects = todoist_project.split(',')
+
+    todoist_url = os.getenv('TODOIST_API_URL')
+    todoist_token = os.getenv('TODOIST_TOKEN')
+    todoist_services = TodoistServices(todoist_token, todoist_url)
+
+    items = todoist_services.get_tasks()
+
+    for item in items.list_item:
+        if item.project_id in projects and item.due_date is not None:
+            due_date_now = datetime.fromisoformat(item.due_date)
+
+            if due_date_now > datetime.now() + timedelta(days=1):
+                continue
+
+            due_date = (due_date_now + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
+
+            todoist_services.update_task(item.id_item, due_date)
+
+
+if __name__ == '__main__':
+    main()
+
+```
+
 
 # Github
 
