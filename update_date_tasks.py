@@ -22,12 +22,12 @@ def main():
     item_updated = []
     for item in items.list_item:
         if item.project_id in projects and item.due_date is not None:
-            due_date_now = datetime.fromisoformat(item.due_date.split('T')[0])
+            due_date_task = datetime.fromisoformat(item.due_date.split('T')[0])
 
-            if due_date_now > datetime.now() + timedelta(days=1):
+            if due_date_task > datetime.now() + timedelta(days=1):
                 continue
 
-            due_date = (due_date_now + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
+            due_date = (due_date_task + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
 
             item_updated.append(ItemUpdate(item.id_item, due_date))
 
