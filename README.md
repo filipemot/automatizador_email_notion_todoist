@@ -318,22 +318,36 @@ from typing import Mapping
 import requests
 
 from domain.item import Item
+from domain.item_create import ItemCreate
+from domain.item_update import ItemUpdate
 from domain.items import Items
+
 
 class TodoistServices:
     def __init__(self, token, url):
         self.token = token
         self.url = url
 
-    def create_task(self, title: str, project_id: str, due_date: str) -> None:
-        payload = json.dumps(self.__create_data(title, project_id, due_date))
-        headers = self.__get_headers()
-        self.__execute_request(headers, payload, "created")
+    def create_task(self, items_created: [ItemCreate]) -> None:
+        list_split = self.__split_list_in_length_100(items_created)
 
-    def update_task(self, project_id: str, due_date: str) -> None:
-        payload = json.dumps(self.__updated_data(project_id, due_date))
-        headers = self.__get_headers()
-        self.__execute_request(headers, payload, "updated")
+        for items in list_split:
+            payload = json.dumps(self.__create_data(items))
+            headers = self.__get_headers()
+            self.__execute_request(headers, payload, "created")
+
+    def update_task(self, items_updated: [ItemUpdate]) -> None:
+
+        list_split = self.__split_list_in_length_100(items_updated)
+
+        for items in list_split:
+            payload = json.dumps(self.__updated_data(items))
+            headers = self.__get_headers()
+            self.__execute_request(headers, payload, "updated")
+
+    @staticmethod
+    def __split_list_in_length_100(items: [ItemUpdate]) -> [[ItemUpdate]]:
+        return [items[i:i + 100] for i in range(0, len(items), 100)]
 
     def get_tasks(self) -> Items:
         headers = self.__get_headers()
@@ -387,38 +401,40 @@ class TodoistServices:
         }
 
     @staticmethod
-    def __create_data(title: str, project_id: str, due_date: str) -> object:
-        return {
-            'commands': [
-                {
-                    'type': 'item_add',
-                    'temp_id': str(uuid.uuid4()),
-                    'uuid': str(uuid.uuid4()),
-                    'args': {
-                        'content': title,
-                        'project_id': int(project_id),
-                        "due": {"date": due_date}
-                    }
+    def __create_data(items_created) -> object:
+        commands = {'commands': []}
+
+        for item in items_created:
+            commands['commands'].append({
+                'type': 'item_add',
+                'temp_id': str(uuid.uuid4()),
+                'uuid': str(uuid.uuid4()),
+                'args': {
+                    'content': item.title,
+                    'project_id': int(item.project_id),
+                    "due": {"date": item.due_date}
                 }
-            ]
-        }
+            })
+
+        return commands
 
 
     @staticmethod
-    def __updated_data(project_id, due_date):
-        return {
-            'commands': [
-                {
-                    'type': 'item_update',
-                    'uuid': str(uuid.uuid4()),
-                    'args': {
-                        'project_id': int(project_id),
-                        "due": {"date": due_date}
-                    }
-                }
-            ]
-        }
+    def __updated_data(items_updated: [ItemUpdate]) -> object:
+        commands = {'commands': []}
 
+        for item in items_updated:
+            commands['commands'].append({
+                'type': 'item_update',
+                'uuid': str(uuid.uuid4()),
+                'args': {
+                    'id': item.item_id,
+                    "due": {"date": item.due_date}
+                }
+            })
+
+
+        return commands
 ```
 
 ```python
@@ -439,6 +455,13 @@ class Item:
         self.due_date = due_date
         self.is_recurring = is_recurring
         self.content = content
+```
+
+```python
+class ItemUpdate:
+    def __init__(self, item_id: int, due_date: str):
+        self.item_id = item_id
+        self.due_date = due_date
 ```
 
 # Main

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from googleapiclient.errors import HttpError
 
+from domain.item_create import ItemCreate
 from services.gmail_services import GmailServices
 from services.notion_services import NotionServices
 from services.todoist_services import TodoistServices
@@ -32,12 +33,16 @@ def main():
         todoist_services = TodoistServices(todoist_token, todoist_url)
         due_date = (datetime.now() + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
 
+        items_created = []
+
         for message in messages:
             notion_services.create_task(notion_database_id, message['subject'], message['content'])
-            todoist_services.create_task(message['subject'], todoist_project, due_date)
+
+            items_created.append(ItemCreate(due_date, message['subject'], todoist_project))
+
             gmail_services.delete_message(message['message_id'])
 
-
+        todoist_services.create_task(items_created)
 
     except HttpError as error:
         print(f'An error occurred: {error}')

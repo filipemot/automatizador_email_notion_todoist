@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 
+from domain.item_update import ItemUpdate
 from services.todoist_services import TodoistServices
 
 
@@ -18,16 +19,19 @@ def main():
 
     items = todoist_services.get_tasks()
 
+    item_updated = []
     for item in items.list_item:
         if item.project_id in projects and item.due_date is not None:
-            due_date_now = datetime.fromisoformat(item.due_date)
+            due_date_now = datetime.fromisoformat(item.due_date.split('T')[0])
 
             if due_date_now > datetime.now() + timedelta(days=1):
                 continue
 
             due_date = (due_date_now + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
 
-            todoist_services.update_task(item.id_item, due_date)
+            item_updated.append(ItemUpdate(item.id_item, due_date))
+
+    todoist_services.update_task(item_updated)
 
 
 if __name__ == '__main__':
