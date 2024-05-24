@@ -475,6 +475,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from googleapiclient.errors import HttpError
 
+from domain.item_create import ItemCreate
 from services.gmail_services import GmailServices
 from services.notion_services import NotionServices
 from services.todoist_services import TodoistServices
@@ -499,14 +500,18 @@ def main():
         notion_services = NotionServices(notion_token, notion_url)
 
         todoist_services = TodoistServices(todoist_token, todoist_url)
-        due_date = (datetime.now() + timedelta(days=25)).replace(hour=10, minute=0, second=0).isoformat()
+        due_date = (datetime.now() + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
+
+        items_created = []
 
         for message in messages:
             notion_services.create_task(notion_database_id, message['subject'], message['content'])
-            todoist_services.create_task(message['subject'], todoist_project, due_date)
+
+            items_created.append(ItemCreate(due_date, message['subject'], todoist_project))
+
             gmail_services.delete_message(message['message_id'])
 
-
+        todoist_services.create_task(items_created)
 
     except HttpError as error:
         print(f'An error occurred: {error}')
@@ -515,6 +520,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 ```
 
 # update_date_tasks
@@ -525,7 +531,15 @@ from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 
+from domain.item_update import ItemUpdate
 from services.todoist_services import TodoistServices
+
+
+def is_not_expire_task(due_date_task: datetime) -> bool:
+    if due_date_task > datetime.now() + timedelta(days=1):
+        return True
+
+    return False
 
 
 def main():
@@ -540,21 +554,23 @@ def main():
 
     items = todoist_services.get_tasks()
 
+    item_updated = []
     for item in items.list_item:
         if item.project_id in projects and item.due_date is not None:
-            due_date_now = datetime.fromisoformat(item.due_date)
+            due_date_task = datetime.fromisoformat(item.due_date.split('T')[0])
 
-            if due_date_now > datetime.now() + timedelta(days=1):
+            if is_not_expire_task(due_date_task):
                 continue
 
-            due_date = (due_date_now + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
+            due_date = (due_date_task + timedelta(days=90)).replace(hour=15, minute=0, second=0).isoformat()
 
-            todoist_services.update_task(item.id_item, due_date)
+            item_updated.append(ItemUpdate(item.id_item, due_date))
+
+    todoist_services.update_task(item_updated)
 
 
 if __name__ == '__main__':
     main()
-
 ```
 
 
