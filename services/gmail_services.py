@@ -99,11 +99,11 @@ class GmailServices:
 
     @staticmethod
     def get_token(creds, file_credentials, scopes):
-        
+
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 file_credentials, scopes)
-            creds = flow.run_local_server(port=0)
+            creds = flow.run_local_server(port=0, access_type='offline')
         return creds
