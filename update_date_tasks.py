@@ -8,7 +8,7 @@ from services.todoist_services import TodoistServices
 
 
 def is_not_expire_task(due_date_task: datetime) -> bool:
-    if due_date_task > datetime.now() + timedelta(days=1):
+    if due_date_task > datetime.now() + timedelta(days=20):
         return True
 
     return False
