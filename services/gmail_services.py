@@ -63,7 +63,10 @@ class GmailServices:
         return list_messages
 
     def delete_message(self, message_id):
-        self.service.users().messages().trash(userId='me', id=message_id).execute()
+        try:
+            self.service.users().messages().trash(userId='me', id=message_id).execute()
+        except Exception as error:
+            print(f'An error occurred: {error}')
 
     def list_messages(self,sender_email, signature):
         results = self.service.users().messages().list(userId='me', labelIds=['INBOX'], q=f'from:{sender_email}').\
